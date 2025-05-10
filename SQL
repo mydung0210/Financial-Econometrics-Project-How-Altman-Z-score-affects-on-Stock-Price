@@ -1,0 +1,112 @@
+# Altman Z-score
+library(data.table)
+library(tidyverse)
+library(lmtest)
+library(psych)
+library(dplyr)
+library(car)
+library(olsrr)
+library(moments)
+
+# Calculate Z-score
+altman <- function(x) {
+  x1 = x$WC/x$TA
+  x2 = x$RE/x$TA
+  x3 = x$EBIT/x$TA
+  x4 = x$MVE/x$TA
+  x5 = x$TS/x$TA
+  Z = 1.2*x1 + 1.4*x2 + 3.3*x3 + 0.6*x4 + x5
+  y <- data.table(x1,x2,x3,x4,x5,Z)
+  return(y)
+}
+
+z14 <- altman(Z14)
+z15 <- altman(Z15)
+z16 <- altman(Z16)
+z17 <- altman(Z17)
+z18 <- altman(Z18)
+z19 <- altman(Z19)
+z20 <- altman(Z20)
+
+# Average Z-score
+mean(z14$Z)
+mean(z15$Z)
+mean(z16$Z)
+mean(z17$Z)
+mean(z18$Z)
+mean(z19$Z)
+mean(z20$Z)
+
+ztotal <- rbind(z14,z15,z16,z17,z18,z19,z20)
+
+# Mean of 7 years
+avg_x1 <- mean(ztotal$x1)
+avg_x2 <- mean(ztotal$x2)
+avg_x3 <- mean(ztotal$x3)
+avg_x4 <- mean(ztotal$x4)
+avg_x5 <- mean(ztotal$x5)
+avg_Z <- mean(ztotal$Z)
+
+# Standard of 7 years
+sd_x1 <- sd(ztotal$x1)
+sd_x2 <- sd(ztotal$x2)
+sd_x3 <- sd(ztotal$x3)
+sd_x4 <- sd(ztotal$x4)
+sd_x5 <- sd(ztotal$x5)
+sd_Z <- sd(ztotal$Z)
+
+# -----------------------------------------------------
+# Desciptive analysis Mean and Standard Deviation
+# analize 2 groups: distress and no distress
+
+distress_mean_sd <- function(x) {
+  y <- filter(x, x$Z < 1.8)
+  describe(y)
+}
+
+distress_mean_sd(z14)
+distress_mean_sd(z15)
+distress_mean_sd(z16)
+distress_mean_sd(z17)
+distress_mean_sd(z18)
+distress_mean_sd(z19)
+distress_mean_sd(z20)
+
+nondistress_mean_sd <- function(x) {
+  y <- filter(x, x$Z > 1.8)
+  describe(y)
+}
+
+nondistress_mean_sd(z14)
+nondistress_mean_sd(z15)
+nondistress_mean_sd(z16)
+nondistress_mean_sd(z17)
+nondistress_mean_sd(z18)
+nondistress_mean_sd(z19)
+nondistress_mean_sd(z20)
+
+# -----------------------------------------------------
+# Assumptions
+
+z_lm <- lm(Z ~ x1+x2+x3+x4+x5, data = ztotal)
+par(mfrow=c(2,2))
+plot(z_lm)
+
+# Assumption 1: residual is zero
+mean(z_lm$residuals)
+# Assumption 2 - Detection of Heteroscedasticity: The White Test
+bptest(z_lm)
+# Assumption 3 - Test of Autocorrelation: The Durbin-Watson Test
+
+durbinWatsonTest(z_lm)
+# Assumption 4 - X and u (residuals) are uncorrelated
+cor.test(ztotal$x1+ztotal$x2+ztotal$x3+ztotal$x4+ztotal$x5,z_lm$residuals)
+# Assumption 5 - Testing Normality Assumption for disturbances
+
+ols_plot_resid_qq(z_lm)
+ols_test_normality(z_lm)
+
+skewness(z_lm$residuals)
+kurtosis(z_lm$residuals)
+
+
